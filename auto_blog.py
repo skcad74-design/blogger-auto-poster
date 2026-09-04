@@ -88,7 +88,6 @@ Return JSON with exact keys:
 "content": Complete HTML blog text.
 """
 
-# Dynamic Fallback Models List
 MODELS_TO_TRY = ['gemini-3.6-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash']
 response = None
 
