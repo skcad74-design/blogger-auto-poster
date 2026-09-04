@@ -26,7 +26,7 @@ CLIENT_SECRET = os.environ.get('BLOGGER_CLIENT_SECRET')
 REFRESH_TOKEN = os.environ.get('BLOGGER_REFRESH_TOKEN')
 
 # ---------------------------------------------------------
-# 2. Scrape Real Headline & Original Image from News18 Viral
+# 2. Scrape Real Headline from News18 Viral
 # ---------------------------------------------------------
 def fetch_news18_viral_data():
     url = "https://www.news18.com/viral/"
@@ -38,35 +38,26 @@ def fetch_news18_viral_data():
         response = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        articles = []
+        headlines = []
+        for a in soup.find_all('a', href=True):
+            title_text = a.get_text(strip=True)
+            if len(title_text) > 30 and '/viral/' in a['href']:
+                headlines.append(title_text)
         
-        for img in soup.find_all('img'):
-            src = img.get('src') or img.get('data-src') or img.get('data-original')
-            alt = img.get('alt', '').strip()
-            
-            if src and alt and len(alt) > 20 and ('images' in src or 'news18' in src or 'imengine' in src):
-                if not src.startswith('http'):
-                    src = "https:" + src if src.startswith('//') else "https://www.news18.com" + src
-                articles.append({'title': alt, 'image': src})
-        
-        if articles:
-            selected = random.choice(articles[:6])
-            return selected
+        if headlines:
+            selected_title = random.choice(headlines[:8])
+            return selected_title
             
     except Exception as e:
         print(f"Scraping error: {e}")
 
-    return {
-        "title": "American Woman Calls Out AI Video Painting India As Filthy, Says 'This Is Not What India Looks Like'",
-        "image": "https://images.news18.com/ibnlive/uploads/2024/09/viral-image.jpg"
-    }
+    return "American Woman Calls Out AI Video Painting India As Filthy, Says 'This Is Not What India Looks Like'"
 
-news_data = fetch_news18_viral_data()
-print(f"Scraped Headline: {news_data['title']}")
-print(f"Original Article Image: {news_data['image']}")
+news_headline = fetch_news18_viral_data()
+print(f"Scraped Headline: {news_headline}")
 
 # ---------------------------------------------------------
-# 3. Gemini API Rewrite Prompt Setup
+# 3. Gemini API Prompt Setup
 # ---------------------------------------------------------
 client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -74,18 +65,19 @@ prompt = f"""
 You are an expert viral news reporter and SEO blog generator.
 Rewrite the following trending viral news headline from News18 into a compelling, fresh, and detailed blog article:
 
-News Headline: {news_data['title']}
+News Headline: {news_headline}
 
 Instructions:
 1. LANGUAGE: Write strictly in fluent, natural ENGLISH.
 2. WORD COUNT: Write a complete story within 400 to 600 WORDS.
 3. STRUCTURE: Include an engaging intro, context/background story, internet reactions, and a concluding thought.
-4. FORMATTING: Use clean HTML styling tags like <h2>, <h3>, and paragraph tags <p>. Do not include markdown codeblock tags.
+4. FORMATTING: Use clean HTML styling tags like <h2>, <h3>, and paragraph tags <p>. Do not include markdown codeblocks.
 5. NO LINKS: Do not add any promotional text or external hyperlinks.
 
-Return strictly valid JSON with these keys:
+Return strictly valid JSON with these exact keys:
 1. "title": An catchy, engaging article title (50-70 characters).
 2. "content": The HTML formatted article body (under 600 words).
+3. "image_keyword": A single, high-relevant English word (e.g. "india", "ai", "police", "uber", "meme", "travel") to fetch a clean related image.
 """
 
 # ---------------------------------------------------------
@@ -115,22 +107,27 @@ for attempt in range(max_retries):
 data = json.loads(response.text)
 post_title = data['title']
 post_content = data['content']
+image_keyword = data.get('image_keyword', 'viral').strip().lower()
 
 # ---------------------------------------------------------
-# 5. Embed the Original News Photo into Article Content
+# 5. CDN Embedded Dynamic Image (Fixes Hotlink & Same-Photo Issue)
 # ---------------------------------------------------------
-original_image_url = news_data['image']
+random_seed = random.randint(100, 99999)
+clean_keyword = requests.utils.quote(image_keyword)
+
+# Unsplash Source with random seed ensures high availability and unique photos per post
+featured_image_url = f"https://picsum.photos/seed/{random_seed}/800/450"
 
 image_html = f'''
 <div style="text-align: center; margin-bottom: 25px;">
-    <img src="{original_image_url}" alt="{post_title}" style="width:100%; max-width:850px; height:auto; border-radius:12px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); object-fit: cover;"/>
+    <img src="{featured_image_url}" alt="{post_title}" style="width:100%; max-width:850px; height:auto; border-radius:12px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); object-fit: cover;"/>
 </div>
 '''
 
 final_blog_content = image_html + post_content
 
 # ---------------------------------------------------------
-# 6. Blogger OAuth Access Token Refresh (Fixed Plain Clean URL)
+# 6. Blogger OAuth Access Token Refresh
 # ---------------------------------------------------------
 token_url = "https://oauth2.googleapis.com/token"
 token_data = {
