@@ -28,72 +28,64 @@ CLIENT_SECRET = os.environ.get('BLOGGER_CLIENT_SECRET')
 REFRESH_TOKEN = os.environ.get('BLOGGER_REFRESH_TOKEN')
 
 # ---------------------------------------------------------
-# 2. Fetch Unique News Title from News18 RSS Feed
+# 2. Fetch Story Title & Scrap Original Image URL
 # ---------------------------------------------------------
-def get_unique_news18_story():
-    rss_urls = [
-        "https://www.news18.com/common-html/v1/eng/ssr/rss/viral.xml",
-        "https://www.news18.com/rss/viral.xml"
-    ]
+def get_news18_story_with_image():
+    url = "https://www.news18.com/viral/"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
+    }
     
-    entries = []
-    for url in rss_urls:
-        feed = feedparser.parse(url)
-        if feed.entries:
-            entries = feed.entries
-            break
-
-    if entries:
-        selected_entry = random.choice(entries[:10])
-        title = selected_entry.title
-        summary_raw = getattr(selected_entry, 'summary', getattr(selected_entry, 'description', ''))
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        soup = BeautifulSoup(response.text, 'html.parser')
         
-        soup = BeautifulSoup(summary_raw, 'html.parser')
-        clean_summary = soup.get_text(strip=True)
+        articles = []
+        for img in soup.find_all('img'):
+            src = img.get('src') or img.get('data-src') or img.get('data-original')
+            alt = img.get('alt', '').strip()
+            
+            if src and alt and len(alt) > 20 and ('images' in src or 'news18' in src or 'imengine' in src):
+                if not src.startswith('http'):
+                    src = "https:" + src if src.startswith('//') else "https://www.news18.com" + src
+                articles.append({'title': alt, 'original_image': src})
         
-        return {
-            "title": title,
-            "summary": clean_summary if clean_summary else title
-        }
-    else:
-        topics = [
-            "Viral Social Media Trend Takes Internet By Storm",
-            "Bizarre Internet Meme Causes Wild Online Reactions",
-            "Shocking Viral Video Leaves Social Media Users Divided"
-        ]
-        chosen = random.choice(topics)
-        return {"title": chosen, "summary": chosen}
+        if articles:
+            return random.choice(articles[:8])
+            
+    except Exception as e:
+        print(f"Scraping error: {e}")
 
-news_data = get_unique_news18_story()
-print(f"Fetched Unique News Topic: {news_data['title']}")
+    return {
+        "title": "Delhi man phone stunt in metro gets millions of views",
+        "original_image": ""
+    }
+
+news_data = get_news18_story_with_image()
+print(f"Fetched Story: {news_data['title']}")
 
 # ---------------------------------------------------------
-# 3. Gemini API Rewrite Prompt Setup
+# 3. Gemini API Prompt Setup
 # ---------------------------------------------------------
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 prompt = f"""
-You are an expert viral news reporter and SEO blog writer.
-Rewrite and expand upon the following trending viral news story into a brand-new, original blog article:
+You are an expert news journalist. Rewrite this viral story:
+Title: {news_data['title']}
 
-News Title: {news_data['title']}
-News Context: {news_data['summary']}
+Rules:
+1. Write in clear, engaging English (400 to 600 words).
+2. Format using HTML tags (<h2>, <h3>, <p>).
+3. Create a detailed visual prompt describing the EXACT news scene to recreate the same image.
 
-Instructions:
-1. LANGUAGE: Write strictly in fluent, natural ENGLISH.
-2. WORD COUNT: Write a complete story between 400 and 600 WORDS.
-3. STRUCTURE: Include an engaging title, background context, social media reaction, and conclusion.
-4. FORMATTING: Use clean HTML tags like <h2>, <h3>, and <p>. Do NOT use markdown block ticks.
-5. NO PROMOTIONAL LINKS: Do not add external URLs.
-
-Return strictly valid JSON with these exact keys:
-1. "title": An engaging, catchy headline (50-70 characters).
-2. "content": The HTML formatted article body (400-600 words).
-3. "image_keyword": A 1-2 word relevant English keyword for a contextual image.
+Return strictly valid JSON with keys:
+1. "title": Catchy title for the post.
+2. "content": HTML formatted article text.
+3. "image_prompt": A highly detailed descriptive prompt matching this news photo (e.g. "a young man dancing in Delhi metro with phone attached to glass window").
 """
 
 # ---------------------------------------------------------
-# 4. Generate Content via Gemini API (gemini-3.6-flash)
+# 4. Generate Content via Gemini
 # ---------------------------------------------------------
 MODEL_NAME = 'gemini-3.6-flash'
 response = None
@@ -119,13 +111,19 @@ for attempt in range(max_retries):
 data = json.loads(response.text)
 post_title = data['title']
 post_content = data['content']
-image_keyword = data.get('image_keyword', 'news').strip().lower()
+image_prompt = data.get('image_prompt', news_data['title'])
 
 # ---------------------------------------------------------
-# 5. Dynamic Featured Image Stream (Picsum CDN)
+# 5. Image Engine: Bypass Hotlink using Proxy or AI Re-creation
 # ---------------------------------------------------------
-random_seed = random.randint(10000, 99999)
-featured_image_url = f"https://picsum.photos/seed/{random_seed}/800/450"
+if news_data['original_image']:
+    # Bypass News18 Hotlink protection using wsrv.nl CDN Proxy for EXACT photo
+    raw_img = news_data['original_image']
+    featured_image_url = f"https://wsrv.nl/?url={requests.utils.quote(raw_img)}&w=800&output=webp"
+else:
+    # Generate identical context photo using Pollinations AI
+    clean_prompt = requests.utils.quote(image_prompt)
+    featured_image_url = f"https://image.pollinations.ai/prompt/{clean_prompt}?width=800&height=450&nologo=true"
 
 image_html = f'''
 <div style="text-align: center; margin-bottom: 25px;">
@@ -171,6 +169,6 @@ payload = {
 res = requests.post(blogger_url, headers=headers, json=payload)
 
 if res.status_code == 200:
-    print(f"Successfully posted new topic: {post_title}")
+    print(f"Successfully posted: {post_title}")
 else:
     print(f"Error publishing post: {res.status_code} - {res.text}")
