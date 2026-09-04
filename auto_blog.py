@@ -44,7 +44,6 @@ def get_unique_news18_story():
             break
 
     if entries:
-        # Pick a random news entry from top 10 items so every execution gets a different story
         selected_entry = random.choice(entries[:10])
         title = selected_entry.title
         summary_raw = getattr(selected_entry, 'summary', getattr(selected_entry, 'description', ''))
@@ -57,7 +56,6 @@ def get_unique_news18_story():
             "summary": clean_summary if clean_summary else title
         }
     else:
-        # Dynamic fallback keywords if RSS completely fails
         topics = [
             "Viral Social Media Trend Takes Internet By Storm",
             "Bizarre Internet Meme Causes Wild Online Reactions",
@@ -85,7 +83,7 @@ Instructions:
 1. LANGUAGE: Write strictly in fluent, natural ENGLISH.
 2. WORD COUNT: Write a complete story between 400 and 600 WORDS.
 3. STRUCTURE: Include an engaging title, background context, social media reaction, and conclusion.
-4. FORMATTING: Use clean HTML tags like <h2>, <h3>, and <p>. Do NOT use markdown block ticks (```html).
+4. FORMATTING: Use clean HTML tags like <h2>, <h3>, and <p>. Do NOT use markdown block ticks.
 5. NO PROMOTIONAL LINKS: Do not add external URLs.
 
 Return strictly valid JSON with these exact keys:
@@ -127,7 +125,7 @@ image_keyword = data.get('image_keyword', 'news').strip().lower()
 # 5. Dynamic Featured Image Stream (Picsum CDN)
 # ---------------------------------------------------------
 random_seed = random.randint(10000, 99999)
-featured_image_url = f"[https://picsum.photos/seed/](https://picsum.photos/seed/){random_seed}/800/450"
+featured_image_url = f"https://picsum.photos/seed/{random_seed}/800/450"
 
 image_html = f'''
 <div style="text-align: center; margin-bottom: 25px;">
@@ -140,7 +138,7 @@ final_blog_content = image_html + post_content
 # ---------------------------------------------------------
 # 6. Blogger OAuth Access Token Refresh
 # ---------------------------------------------------------
-token_url = "[https://oauth2.googleapis.com/token](https://oauth2.googleapis.com/token)"
+token_url = "https://oauth2.googleapis.com/token"
 token_data = {
     'client_id': CLIENT_ID,
     'client_secret': CLIENT_SECRET,
@@ -159,7 +157,7 @@ access_token = token_json['access_token']
 # ---------------------------------------------------------
 # 7. Publish Article to Blogger
 # ---------------------------------------------------------
-blogger_url = f"[https://www.googleapis.com/blogger/v3/blogs/](https://www.googleapis.com/blogger/v3/blogs/){BLOG_ID}/posts/"
+blogger_url = f"https://www.googleapis.com/blogger/v3/blogs/{BLOG_ID}/posts/"
 headers = {
     'Authorization': f'Bearer {access_token}',
     'Content-Type': 'application/json'
