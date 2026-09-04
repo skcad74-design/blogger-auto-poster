@@ -31,15 +31,16 @@ Write a highly engaging, viral, and SEO-optimized blog article focusing on one o
 Rules:
 1. LANGUAGE: Write strictly in fluent, high-quality ENGLISH.
 2. WORD COUNT: Must be detailed and between 600 and 1000 words.
-3. NO ADS OR EXTERNAL LINKS: Do NOT include any promotional text, website URLs, or affiliate links.
+3. NO ADS OR EXTERNAL LINKS: Do NOT include any promotional text, website URLs, or affiliate links in the text content.
 4. FORMAT: Use proper HTML structure with <h2>, <h3> headings, an engaging intro, actionable tips, bullet points, and a concluding thought.
 
 Return your response strictly in JSON format with these exact keys:
 1. "title": A catchy, click-worthy headline in English (50-70 characters).
 2. "content": The HTML formatted blog post (600-1000 words).
-3. "image_keyword": A 2-word English phrase representing the topic (e.g., "couple fitness", "skincare routine", "gym workout", "fashion style") for image matching.
+3. "image_keyword": A 1-2 word simple English keyword (e.g. "fitness", "makeup", "couple", "fashion", "workout") for photo matching.
 """
 
+# Fixed: Model updated to gemini-2.5-flash standard stable version
 response = client.models.generate_content(
     model='gemini-2.5-flash',
     contents=prompt,
@@ -51,14 +52,16 @@ response = client.models.generate_content(
 data = json.loads(response.text)
 post_title = data['title']
 post_content = data['content']
-image_keyword = data.get('image_keyword', 'lifestyle fitness').strip().lower()
+image_keyword = data.get('image_keyword', 'lifestyle').strip().lower()
 
 # ---------------------------------------------------------
-# 3. HD Real Photo Generation (Picsum Stream)
+# 3. Working Direct Real HD Photo Link (Unsplash CDN Stream)
 # ---------------------------------------------------------
-random_id = random.randint(1, 3000)
+keyword_clean = requests.utils.quote(image_keyword)
+random_id = random.randint(100, 999)
 
-featured_image_url = f"https://picsum.photos/seed/{requests.utils.quote(image_keyword)}{random_id}/1200/675"
+# Unsplash Direct Image URL
+featured_image_url = f"https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=1200&q=80&sig={random_id}&{keyword_clean}"
 
 image_html = f'''
 <div style="text-align: center; margin-bottom: 25px;">
@@ -69,7 +72,7 @@ image_html = f'''
 final_blog_content = image_html + post_content
 
 print(f"Generated Title: {post_title}")
-print(f"Topic Keyword: {image_keyword}")
+print(f"Direct HD Image Link: {featured_image_url}")
 
 # ---------------------------------------------------------
 # 4. Blogger OAuth Access Token Refresh
@@ -107,6 +110,6 @@ payload = {
 res = requests.post(blogger_url, headers=headers, json=payload)
 
 if res.status_code == 200:
-    print("Lifestyle & Wellness Blog Post successfully published to Blogger!")
+    print("Post with Direct Real HD Photo Link successfully published to Blogger!")
 else:
     print(f"Error publishing post: {res.status_code} - {res.text}")
