@@ -30,7 +30,7 @@ Return your response strictly in JSON format with these exact keys:
 3. "image_keyword": A 2-3 word English search phrase (e.g. "artificial intelligence laptop", "healthy fitness meal") to fetch a matching high-quality unsplash image.
 """
 
-# আপডেট করা মডেল ভার্সন ব্যবহার করা হয়েছে
+# আপডেট করা মডেল ভার্সন (gemini-2.5-flash)
 response = client.models.generate_content(
     model='gemini-2.5-flash',
     contents=prompt,
@@ -44,13 +44,13 @@ post_title = data['title']
 post_content = data['content']
 image_keyword = data.get('image_keyword', 'technology')
 
-# Unsplash-এর মাধ্যমে ফ্রি ফিচার্ড ইমেজ যুক্তকরণ
+# Unsplash ইমেজ লিংক জেনারেট
 featured_image_url = f"https://source.unsplash.com/800x450/?{requests.utils.quote(image_keyword)}"
 image_html = f'<div style="text-align: center; margin-bottom: 20px;"><img src="{featured_image_url}" alt="{post_title}" style="max-width:100%; height:auto; border-radius:8px;"/></div>'
 
 final_blog_content = image_html + post_content
 
-print(f"Generated SEO Title: {post_title}")
+print(f"Generated Title: {post_title}")
 
 # ---------------------------------------------------------
 # ৩. Blogger OAuth Access Token রিফ্রেশ
