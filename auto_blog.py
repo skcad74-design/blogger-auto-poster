@@ -2,6 +2,7 @@ import os
 import json
 import requests
 import random
+import time
 from google import genai
 from google.genai import types
 
@@ -15,7 +16,7 @@ CLIENT_SECRET = os.environ.get('BLOGGER_CLIENT_SECRET')
 REFRESH_TOKEN = os.environ.get('BLOGGER_REFRESH_TOKEN')
 
 # ---------------------------------------------------------
-# 2. Gemini API - Post Generation
+# 2. Gemini API Initialization & Prompt Construction
 # ---------------------------------------------------------
 client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -40,14 +41,31 @@ Return your response strictly in JSON format with these exact keys:
 3. "image_keyword": A 1-2 word simple English keyword (e.g. "fitness", "makeup", "couple", "fashion", "workout") for photo matching.
 """
 
-# FIXED: Correct model identifier format for google-genai SDK
-response = client.models.generate_content(
-    model='gemini-2.5-flash',
-    contents=prompt,
-    config=types.GenerateContentConfig(
-        response_mime_type="application/json"
-    ),
-)
+# ---------------------------------------------------------
+# 3. Robust API Call with Retry Logic (Fixes 503 Overload)
+# ---------------------------------------------------------
+# Validated Model string for new google-genai SDK
+MODEL_NAME = 'gemini-2.5-flash'
+
+response = None
+max_retries = 3
+
+for attempt in range(max_retries):
+    try:
+        response = client.models.generate_content(
+            model=MODEL_NAME,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json"
+            ),
+        )
+        break
+    except Exception as e:
+        print(f"Attempt {attempt + 1} failed with error: {e}")
+        if attempt < max_retries - 1:
+            time.sleep(5) # Wait before retrying
+        else:
+            raise e
 
 data = json.loads(response.text)
 post_title = data['title']
@@ -55,7 +73,7 @@ post_content = data['content']
 image_keyword = data.get('image_keyword', 'lifestyle').strip().lower()
 
 # ---------------------------------------------------------
-# 3. High-Quality Dynamic HD Image Stream
+# 4. Dynamic Featured Image Stream
 # ---------------------------------------------------------
 keyword_clean = requests.utils.quote(image_keyword)
 random_sig = random.randint(1000, 9999)
@@ -74,7 +92,7 @@ print(f"Generated Title: {post_title}")
 print(f"Keywords: {image_keyword}")
 
 # ---------------------------------------------------------
-# 4. Blogger OAuth Access Token Refresh
+# 5. Blogger OAuth Token Refresh
 # ---------------------------------------------------------
 token_url = "https://oauth2.googleapis.com/token"
 token_data = {
@@ -93,7 +111,7 @@ if 'access_token' not in token_json:
 access_token = token_json['access_token']
 
 # ---------------------------------------------------------
-# 5. Publish Post via Blogger API v3
+# 6. Publish to Blogger
 # ---------------------------------------------------------
 blogger_url = f"https://www.googleapis.com/blogger/v3/blogs/{BLOG_ID}/posts/"
 headers = {
