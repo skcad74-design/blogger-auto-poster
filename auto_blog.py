@@ -88,7 +88,8 @@ Return JSON with exact keys:
 "content": Complete HTML blog text.
 """
 
-MODELS_TO_TRY = ['gemini-3.6-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash']
+# Updated list of supported Gemini API models
+MODELS_TO_TRY = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-8b', 'gemini-2.5-flash']
 response = None
 
 for model_name in MODELS_TO_TRY:
@@ -106,10 +107,10 @@ for model_name in MODELS_TO_TRY:
             error_msg = str(e)
             print(f"Attempt {attempt + 1} with {model_name} failed: {error_msg}")
             if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg or "503" in error_msg:
-                print("Rate limit or high demand detected. Waiting 30 seconds...")
-                time.sleep(30)
+                print("Quota limit or server busy. Retrying after 60 seconds...")
+                time.sleep(60)
             elif "404" in error_msg or "NOT_FOUND" in error_msg:
-                print(f"Model {model_name} not found. Trying next fallback model...")
+                print(f"Model {model_name} not available. Moving to next fallback model...")
                 break
             else:
                 time.sleep(10)
