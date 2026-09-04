@@ -3,8 +3,18 @@ import json
 import requests
 import random
 import time
-import feedparser
-from bs4 import BeautifulSoup
+import sys
+import subprocess
+
+# Auto-install dependencies if missing in run environment
+try:
+    import feedparser
+    from bs4 import BeautifulSoup
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "feedparser", "beautifulsoup4"])
+    import feedparser
+    from bs4 import BeautifulSoup
+
 from google import genai
 from google.genai import types
 
@@ -21,23 +31,24 @@ REFRESH_TOKEN = os.environ.get('BLOGGER_REFRESH_TOKEN')
 # 2. Fetch Latest News from News18 RSS Feed
 # ---------------------------------------------------------
 def get_latest_news18_story():
-    # News18 Viral RSS Feed URL
-    rss_url = "https://www.news18.com/common-html/v1/eng/ssr/rss/viral.xml"
-    feed = feedparser.parse(rss_url)
+    rss_urls = [
+        "https://www.news18.com/common-html/v1/eng/ssr/rss/viral.xml",
+        "https://www.news18.com/rss/viral.xml"
+    ]
     
-    if not feed.entries:
-        # Fallback RSS feed if main one fails
-        rss_url = "https://www.news18.com/rss/viral.xml"
-        feed = feedparser.parse(rss_url)
+    feed = None
+    for url in rss_urls:
+        feed = feedparser.parse(url)
+        if feed.entries:
+            break
 
-    if feed.entries:
-        # Pick a random news item from the top 5 latest entries to avoid repetitive posts
+    if feed and feed.entries:
+        # Pick a random news item from top 5 entries to maintain freshness
         selected_entry = random.choice(feed.entries[:5])
         
         title = selected_entry.title
         summary_raw = getattr(selected_entry, 'summary', getattr(selected_entry, 'description', ''))
         
-        # Clean HTML tags from summary
         soup = BeautifulSoup(summary_raw, 'html.parser')
         clean_summary = soup.get_text(strip=True)
         
@@ -46,17 +57,16 @@ def get_latest_news18_story():
             "summary": clean_summary if clean_summary else title
         }
     else:
-        # Default safety fallback if RSS feed is unreachable
         return {
-            "title": "Trending Viral News Story",
-            "summary": "Interesting viral story happening around the world on social media."
+            "title": "Trending Viral Social Media Story",
+            "summary": "A incredible story trending on social media platforms globally."
         }
 
 news_data = get_latest_news18_story()
 print(f"Fetched News18 Topic: {news_data['title']}")
 
 # ---------------------------------------------------------
-# 3. Gemini API Initialization & Prompt
+# 3. Gemini API Initialization & Prompt Construction
 # ---------------------------------------------------------
 client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -69,18 +79,18 @@ News Summary: {news_data['summary']}
 
 Rules:
 1. LANGUAGE: Write strictly in fluent, high-quality ENGLISH.
-2. WORD COUNT: Keep the word count strictly UP TO 600 WORDS (between 400 and 600 words max).
-3. NO ADS OR EXTERNAL LINKS: Do NOT include any promotional text, website URLs, or affiliate links in the text content.
-4. FORMAT: Use proper HTML structure with <h2>, <h3> headings, an engaging opening, full background story, public reaction/context, and a quick wrap-up.
+2. WORD COUNT: Must be concise and strictly UP TO 600 WORDS (between 400 and 600 words total).
+3. NO ADS OR EXTERNAL LINKS: Do NOT include any promotional text, website URLs, or affiliate links.
+4. FORMAT: Use proper HTML structure with <h2>, <h3> headings, an engaging opening, background details, public reaction, and a concise conclusion.
 
 Return your response strictly in JSON format with these exact keys:
-1. "title": An engaging, click-worthy headline in English (50-70 characters).
+1. "title": An engaging headline in English (50-70 characters).
 2. "content": The HTML formatted blog post (under 600 words).
-3. "image_keyword": A 1-2 word simple English keyword related to this specific news story for dynamic image matching.
+3. "image_keyword": A 1-2 word simple English keyword for dynamic photo stream.
 """
 
 # ---------------------------------------------------------
-# 4. API Execution with Retry (gemini-3.6-flash)
+# 4. API Execution with Retry Engine (gemini-3.6-flash)
 # ---------------------------------------------------------
 MODEL_NAME = 'gemini-3.6-flash'
 response = None
@@ -109,7 +119,7 @@ post_content = data['content']
 image_keyword = data.get('image_keyword', 'viral news').strip().lower()
 
 # ---------------------------------------------------------
-# 5. Dynamic Featured Image Stream
+# 5. Unsplash Dynamic Feature Image Stream
 # ---------------------------------------------------------
 keyword_clean = requests.utils.quote(image_keyword)
 random_sig = random.randint(1000, 9999)
@@ -125,10 +135,10 @@ image_html = f'''
 final_blog_content = image_html + post_content
 
 print(f"Generated Title: {post_title}")
-print(f"Image Keywords: {image_keyword}")
+print(f"Keywords: {image_keyword}")
 
 # ---------------------------------------------------------
-# 6. Blogger OAuth Token Refresh
+# 6. Blogger OAuth Access Token Refresh
 # ---------------------------------------------------------
 token_url = "https://oauth2.googleapis.com/token"
 token_data = {
@@ -147,7 +157,7 @@ if 'access_token' not in token_json:
 access_token = token_json['access_token']
 
 # ---------------------------------------------------------
-# 7. Publish to Blogger
+# 7. Publish Post via Blogger API v3
 # ---------------------------------------------------------
 blogger_url = f"https://www.googleapis.com/blogger/v3/blogs/{BLOG_ID}/posts/"
 headers = {
