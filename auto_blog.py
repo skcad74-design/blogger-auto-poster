@@ -5,13 +5,13 @@ from google import genai
 from google.genai import types
 
 # ---------------------------------------------------------
-# ১. এনভায়রনমেন্ট ভেরিয়েবল লোড
+# ১. এনভায়রনমেন্ট ভেরিয়েবল লোড (আপনার Secrets এর নামের সাথে মেলানো)
 # ---------------------------------------------------------
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 BLOG_ID = os.environ.get('BLOGGER_BLOG_ID')
-CLIENT_ID = os.environ.get('CLIENT_ID')
-CLIENT_SECRET = os.environ.get('CLIENT_SECRET')
-REFRESH_TOKEN = os.environ.get('REFRESH_TOKEN')
+CLIENT_ID = os.environ.get('BLOGGER_CLIENT_ID')
+CLIENT_SECRET = os.environ.get('BLOGGER_CLIENT_SECRET')
+REFRESH_TOKEN = os.environ.get('BLOGGER_REFRESH_TOKEN')
 
 # ---------------------------------------------------------
 # ২. Gemini API দিয়ে SEO পোস্ট জেনারেট
@@ -27,7 +27,6 @@ Return your response strictly in JSON format with these exact keys:
 3. "image_keyword": A 2-3 word English search phrase (e.g. "artificial intelligence laptop") to fetch a matching high-quality image.
 """
 
-# লেটেস্ট জেনারেটিভ মডেল বসানো হয়েছে
 response = client.models.generate_content(
     model='gemini-3.6-flash',
     contents=prompt,
