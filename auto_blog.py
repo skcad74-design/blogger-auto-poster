@@ -1,6 +1,7 @@
 import os
 import json
 import requests
+import random
 from google import genai
 from google.genai import types
 
@@ -24,7 +25,7 @@ You are an expert SEO blogger. Create a unique, engaging, highly SEO-optimized b
 Return your response strictly in JSON format with these exact keys:
 1. "title": A compelling, click-worthy SEO title (50-60 characters).
 2. "content": The HTML formatted blog post content. Include proper heading hierarchy (<h2>, <h3>), engaging introduction, bullet points, and conclusion.
-3. "image_keyword": A clear 2-3 word English visual subject (e.g. "futuristic smartphone on desk", "fresh healthy salad bowl") to generate a photo.
+3. "image_keyword": A simple 1-2 word topic keyword (e.g., "laptop", "fitness", "coffee", "marketing") to match the post theme.
 """
 
 response = client.models.generate_content(
@@ -38,23 +39,27 @@ response = client.models.generate_content(
 data = json.loads(response.text)
 post_title = data['title']
 post_content = data['content']
-image_keyword = data.get('image_keyword', 'modern technology desk')
+image_keyword = data.get('image_keyword', 'technology').strip().lower()
 
 # ---------------------------------------------------------
-# ৩. Ultra-HD High Quality AI Photo Generation
+# ৩. API ছাড়া সরাসরি Real HD Photo Fetch (No API Key Required)
 # ---------------------------------------------------------
-# HD ও রিয়েলিস্টিক প্রম্পট এনহ্যান্সমেন্ট
-hd_prompt = f"4k resolution, ultra detailed, realistic photography, professional studio lighting, 8k render, {image_keyword}"
-encoded_prompt = requests.utils.quote(hd_prompt)
+# র্যান্ডম সীড ব্যবহার করা হয়েছে যাতে প্রতি পোস্টে একদম নতুন এইচডি ছবি আসে
+random_id = random.randint(1, 1000)
 
-# Pollinations AI (HD Resolution: 1200x675 with high detail parameters)
-featured_image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1200&height=675&nologo=true&enhance=true"
+# 1200x675 রেজোলিউশনের হাই ডিফিনিশন রিয়েল ফটো ইউআরএল
+featured_image_url = f"https://picsum.photos/seed/{requests.utils.quote(image_keyword)}{random_id}/1200/675"
 
-image_html = f'<div style="text-align: center; margin-bottom: 20px;"><img src="{featured_image_url}" alt="{post_title}" style="max-width:100%; height:auto; border-radius:10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/></div>'
+image_html = f'''
+<div style="text-align: center; margin-bottom: 25px;">
+    <img src="{featured_image_url}" alt="{post_title}" style="width:100%; max-width:850px; height:auto; border-radius:12px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); object-fit: cover;"/>
+</div>
+'''
 
 final_blog_content = image_html + post_content
 
 print(f"Generated Title: {post_title}")
+print(f"Image Link: {featured_image_url}")
 
 # ---------------------------------------------------------
 # ৪. Blogger OAuth Access Token রিফ্রেশ
@@ -92,6 +97,6 @@ payload = {
 res = requests.post(blogger_url, headers=headers, json=payload)
 
 if res.status_code == 200:
-    print("SEO Blog post with HD photo successfully published to Blogger!")
+    print("SEO Blog post with Real HD photo successfully published to Blogger!")
 else:
     print(f"Error publishing post: {res.status_code} - {res.text}")
