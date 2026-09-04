@@ -14,7 +14,7 @@ CLIENT_SECRET = os.environ.get('CLIENT_SECRET')
 REFRESH_TOKEN = os.environ.get('REFRESH_TOKEN')
 
 # ---------------------------------------------------------
-# ২. Gemini API দিয়ে SEO পোস্ট ও ছবি জেনারেট
+# ২. Gemini API দিয়ে SEO পোস্ট জেনারেট
 # ---------------------------------------------------------
 client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -23,16 +23,13 @@ You are an expert SEO blogger. Create a unique, engaging, highly SEO-optimized b
 
 Return your response strictly in JSON format with these exact keys:
 1. "title": A compelling, click-worthy SEO title (50-60 characters).
-2. "content": The HTML formatted blog post content. Include:
-   - Proper heading hierarchy (<h2>, <h3>)
-   - Engaging introduction, well-structured bullet points, and conclusion
-   - Relevant keywords naturally integrated for search engines
-3. "image_keyword": A 2-3 word English search phrase (e.g. "artificial intelligence laptop", "healthy fitness meal") to fetch a matching high-quality unsplash image.
+2. "content": The HTML formatted blog post content. Include proper heading hierarchy (<h2>, <h3>), engaging introduction, bullet points, and conclusion.
+3. "image_keyword": A 2-3 word English search phrase (e.g. "artificial intelligence laptop") to fetch a matching high-quality image.
 """
 
-# আপডেট করা মডেল ভার্সন (gemini-2.5-flash)
+# লেটেস্ট জেনারেটিভ মডেল বসানো হয়েছে
 response = client.models.generate_content(
-    model='gemini-2.5-flash',
+    model='gemini-3.6-flash',
     contents=prompt,
     config=types.GenerateContentConfig(
         response_mime_type="application/json"
