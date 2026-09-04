@@ -35,8 +35,9 @@ Return your response strictly in JSON format with these exact keys:
 3. "image_keyword": A 2-word English search phrase describing the main topic (e.g., "cricket stadium", "tech summit", "space launch") for photo matching.
 """
 
+# CHANGED: Switched to gemini-1.5-flash for stability
 response = client.models.generate_content(
-    model='gemini-3.6-flash',
+    model='gemini-1.5-flash',
     contents=prompt,
     config=types.GenerateContentConfig(
         response_mime_type="application/json"
