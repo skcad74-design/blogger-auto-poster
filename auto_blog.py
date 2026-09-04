@@ -15,7 +15,7 @@ CLIENT_SECRET = os.environ.get('BLOGGER_CLIENT_SECRET')
 REFRESH_TOKEN = os.environ.get('BLOGGER_REFRESH_TOKEN')
 
 # ---------------------------------------------------------
-# 2. Gemini API - Post Generation
+# 2. Gemini API - Viral Lifestyle/Wellness Post Generation
 # ---------------------------------------------------------
 client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -40,9 +40,9 @@ Return your response strictly in JSON format with these exact keys:
 3. "image_keyword": A 1-2 word simple English keyword (e.g. "fitness", "makeup", "couple", "fashion", "workout") for photo matching.
 """
 
-# FIXED: Updated model string to gemini-3.6-flash
+# STABLE MODEL: Standardized to gemini-2.5-flash to avoid 503 high-demand errors
 response = client.models.generate_content(
-    model='gemini-3.6-flash',
+    model='gemini-2.5-flash',
     contents=prompt,
     config=types.GenerateContentConfig(
         response_mime_type="application/json"
@@ -55,7 +55,7 @@ post_content = data['content']
 image_keyword = data.get('image_keyword', 'lifestyle').strip().lower()
 
 # ---------------------------------------------------------
-# 3. High-Quality Dynamic HD Image Stream
+# 3. Unsplash CDN HD Image Insertion
 # ---------------------------------------------------------
 keyword_clean = requests.utils.quote(image_keyword)
 random_sig = random.randint(1000, 9999)
