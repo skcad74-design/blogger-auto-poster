@@ -5,7 +5,7 @@ from google import genai
 from google.genai import types
 
 # ---------------------------------------------------------
-# ১. এনভায়রনমেন্ট ভেরিয়েবল লোড (আপনার Secrets এর নামের সাথে মেলানো)
+# ১. এনভায়রনমেন্ট ভেরিয়েবল লোড
 # ---------------------------------------------------------
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 BLOG_ID = os.environ.get('BLOGGER_BLOG_ID')
@@ -19,12 +19,12 @@ REFRESH_TOKEN = os.environ.get('BLOGGER_REFRESH_TOKEN')
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 prompt = """
-You are an expert SEO blogger. Create a unique, engaging, highly SEO-optimized blog post on a trending topic in tech, health, lifestyle, or digital marketing.
+You are an expert SEO blogger. Create a unique, engaging, highly SEO-optimized blog post on a trending topic in Tech, Health, Lifestyle, or Digital Marketing.
 
 Return your response strictly in JSON format with these exact keys:
 1. "title": A compelling, click-worthy SEO title (50-60 characters).
 2. "content": The HTML formatted blog post content. Include proper heading hierarchy (<h2>, <h3>), engaging introduction, bullet points, and conclusion.
-3. "image_keyword": A 2-3 word English search phrase (e.g. "artificial intelligence laptop") to fetch a matching high-quality image.
+3. "image_keyword": A 2-3 word English search phrase (e.g. "digital marketing laptop", "healthy lifestyle fitness") to fetch a matching high-quality image.
 """
 
 response = client.models.generate_content(
@@ -38,10 +38,12 @@ response = client.models.generate_content(
 data = json.loads(response.text)
 post_title = data['title']
 post_content = data['content']
-image_keyword = data.get('image_keyword', 'technology')
+image_keyword = data.get('image_keyword', 'technology lifestyle')
 
-# Unsplash ইমেজ লিংক জেনারেট
-featured_image_url = f"https://source.unsplash.com/800x450/?{requests.utils.quote(image_keyword)}"
+# Pollinations AI দিয়ে স্পষ্ট ছবি জেনারেট
+image_keyword_encoded = requests.utils.quote(image_keyword)
+featured_image_url = f"https://image.pollinations.ai/prompt/high%20quality%20blog%20featured%20image%20about%20{image_keyword_encoded}?width=800&height=450&nologo=true"
+
 image_html = f'<div style="text-align: center; margin-bottom: 20px;"><img src="{featured_image_url}" alt="{post_title}" style="max-width:100%; height:auto; border-radius:8px;"/></div>'
 
 final_blog_content = image_html + post_content
