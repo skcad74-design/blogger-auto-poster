@@ -40,9 +40,9 @@ Return your response strictly in JSON format with these exact keys:
 3. "image_keyword": A 1-2 word simple English keyword (e.g. "fitness", "makeup", "couple", "fashion", "workout") for photo matching.
 """
 
-# FIXED: Stable gemini-1.5-flash model to prevent 404 & 503 errors
+# FIXED: Correct model identifier format for google-genai SDK
 response = client.models.generate_content(
-    model='gemini-1.5-flash',
+    model='gemini-2.5-flash',
     contents=prompt,
     config=types.GenerateContentConfig(
         response_mime_type="application/json"
