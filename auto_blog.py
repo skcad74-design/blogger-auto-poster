@@ -6,13 +6,11 @@ import time
 import sys
 import subprocess
 
-# Auto-install dependencies if missing in run environment
+# Auto-install dependencies if missing
 try:
-    import feedparser
     from bs4 import BeautifulSoup
 except ImportError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "feedparser", "beautifulsoup4"])
-    import feedparser
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "beautifulsoup4"])
     from bs4 import BeautifulSoup
 
 from google import genai
@@ -28,69 +26,74 @@ CLIENT_SECRET = os.environ.get('BLOGGER_CLIENT_SECRET')
 REFRESH_TOKEN = os.environ.get('BLOGGER_REFRESH_TOKEN')
 
 # ---------------------------------------------------------
-# 2. Fetch Latest News from News18 RSS Feed
+# 2. Scrape Real Headline & Original Image from News18 Viral
 # ---------------------------------------------------------
-def get_latest_news18_story():
-    rss_urls = [
-        "https://www.news18.com/common-html/v1/eng/ssr/rss/viral.xml",
-        "https://www.news18.com/rss/viral.xml"
-    ]
+def fetch_news18_viral_data():
+    url = "https://www.news18.com/viral/"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
+    }
     
-    feed = None
-    for url in rss_urls:
-        feed = feedparser.parse(url)
-        if feed.entries:
-            break
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        articles = []
+        
+        # Extract article blocks with images and links
+        for img in soup.find_all('img'):
+            src = img.get('src') or img.get('data-src') or img.get('data-original')
+            alt = img.get('alt', '').strip()
+            
+            # Filter valid news hero images
+            if src and alt and len(alt) > 20 and ('images' in src or 'news18' in src or 'imengine' in src):
+                if not src.startswith('http'):
+                    src = "https:" + src if src.startswith('//') else "https://www.news18.com" + src
+                articles.append({'title': alt, 'image': src})
+        
+        if articles:
+            # Randomly select 1 trending news item from the top scraped items
+            selected = random.choice(articles[:6])
+            return selected
+            
+    except Exception as e:
+        print(f"Scraping error: {e}")
 
-    if feed and feed.entries:
-        # Pick a random news item from top 5 entries to maintain freshness
-        selected_entry = random.choice(feed.entries[:5])
-        
-        title = selected_entry.title
-        summary_raw = getattr(selected_entry, 'summary', getattr(selected_entry, 'description', ''))
-        
-        soup = BeautifulSoup(summary_raw, 'html.parser')
-        clean_summary = soup.get_text(strip=True)
-        
-        return {
-            "title": title,
-            "summary": clean_summary if clean_summary else title
-        }
-    else:
-        return {
-            "title": "Trending Viral Social Media Story",
-            "summary": "A incredible story trending on social media platforms globally."
-        }
+    # Fallback default if scraping gets blocked
+    return {
+        "title": "American Woman Calls Out AI Video Painting India As Filthy, Says 'This Is Not What India Looks Like'",
+        "image": "https://images.news18.com/ibnlive/uploads/2024/09/viral-image.jpg"
+    }
 
-news_data = get_latest_news18_story()
-print(f"Fetched News18 Topic: {news_data['title']}")
+news_data = fetch_news18_viral_data()
+print(f"Scraped Headline: {news_data['title']}")
+print(f"Original Article Image: {news_data['image']}")
 
 # ---------------------------------------------------------
-# 3. Gemini API Initialization & Prompt Construction
+# 3. Gemini API Rewrite Prompt Setup
 # ---------------------------------------------------------
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 prompt = f"""
-You are a professional news journalist and blog writer.
-Rewrite and expand upon the following trending news story from News18 Viral into a captivating, viral blog article:
+You are an expert viral news reporter and SEO blog generator.
+Rewrite the following trending viral news headline from News18 into a compelling, fresh, and detailed blog article:
 
 News Headline: {news_data['title']}
-News Summary: {news_data['summary']}
 
-Rules:
-1. LANGUAGE: Write strictly in fluent, high-quality ENGLISH.
-2. WORD COUNT: Must be concise and strictly UP TO 600 WORDS (between 400 and 600 words total).
-3. NO ADS OR EXTERNAL LINKS: Do NOT include any promotional text, website URLs, or affiliate links.
-4. FORMAT: Use proper HTML structure with <h2>, <h3> headings, an engaging opening, background details, public reaction, and a concise conclusion.
+Instructions:
+1. LANGUAGE: Write strictly in fluent, natural ENGLISH.
+2. WORD COUNT: Write a complete story within 400 to 600 WORDS.
+3. STRUCTURE: Include an engaging intro, context/background story, internet reactions, and a concluding thought.
+4. FORMATTING: Use clean HTML styling tags like <h2>, <h3>, and paragraph tags <p>. Do not include markdown codeblock tags like ```html.
+5. NO LINKS: Do not add any promotional text or external hyperlinks.
 
-Return your response strictly in JSON format with these exact keys:
-1. "title": An engaging headline in English (50-70 characters).
-2. "content": The HTML formatted blog post (under 600 words).
-3. "image_keyword": A 1-2 word simple English keyword for dynamic photo stream.
+Return strictly valid JSON with these keys:
+1. "title": An catchy, engaging article title (50-70 characters).
+2. "content": The HTML formatted article body (under 600 words).
 """
 
 # ---------------------------------------------------------
-# 4. API Execution with Retry Engine (gemini-3.6-flash)
+# 4. Generate Content via Gemini API (gemini-3.6-flash)
 # ---------------------------------------------------------
 MODEL_NAME = 'gemini-3.6-flash'
 response = None
@@ -116,31 +119,24 @@ for attempt in range(max_retries):
 data = json.loads(response.text)
 post_title = data['title']
 post_content = data['content']
-image_keyword = data.get('image_keyword', 'viral news').strip().lower()
 
 # ---------------------------------------------------------
-# 5. Unsplash Dynamic Feature Image Stream
+# 5. Embed the Original News Photo into Article Content
 # ---------------------------------------------------------
-keyword_clean = requests.utils.quote(image_keyword)
-random_sig = random.randint(1000, 9999)
-
-featured_image_url = f"https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80&sig={random_sig}&{keyword_clean}"
+original_image_url = news_data['image']
 
 image_html = f'''
 <div style="text-align: center; margin-bottom: 25px;">
-    <img src="{featured_image_url}" alt="{post_title}" style="width:100%; max-width:850px; height:auto; border-radius:12px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); object-fit: cover;"/>
+    <img src="{original_image_url}" alt="{post_title}" style="width:100%; max-width:850px; height:auto; border-radius:12px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); object-fit: cover;"/>
 </div>
 '''
 
 final_blog_content = image_html + post_content
 
-print(f"Generated Title: {post_title}")
-print(f"Keywords: {image_keyword}")
-
 # ---------------------------------------------------------
 # 6. Blogger OAuth Access Token Refresh
 # ---------------------------------------------------------
-token_url = "https://oauth2.googleapis.com/token"
+token_url = "[https://oauth2.googleapis.com/token](https://oauth2.googleapis.com/token)"
 token_data = {
     'client_id': CLIENT_ID,
     'client_secret': CLIENT_SECRET,
@@ -157,9 +153,9 @@ if 'access_token' not in token_json:
 access_token = token_json['access_token']
 
 # ---------------------------------------------------------
-# 7. Publish Post via Blogger API v3
+# 7. Publish Article to Blogger
 # ---------------------------------------------------------
-blogger_url = f"https://www.googleapis.com/blogger/v3/blogs/{BLOG_ID}/posts/"
+blogger_url = f"[https://www.googleapis.com/blogger/v3/blogs/](https://www.googleapis.com/blogger/v3/blogs/){BLOG_ID}/posts/"
 headers = {
     'Authorization': f'Bearer {access_token}',
     'Content-Type': 'application/json'
@@ -173,6 +169,6 @@ payload = {
 res = requests.post(blogger_url, headers=headers, json=payload)
 
 if res.status_code == 200:
-    print("News article successfully published to Blogger!")
+    print(f"Successfully posted: {post_title}")
 else:
     print(f"Error publishing post: {res.status_code} - {res.text}")
