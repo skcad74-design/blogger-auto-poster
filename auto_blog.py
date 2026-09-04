@@ -88,31 +88,38 @@ Return JSON with exact keys:
 "content": Complete HTML blog text.
 """
 
-# Use standard supported Gemini model
-MODEL_NAME = 'gemini-2.5-flash'
+# Dynamic Fallback Models List
+MODELS_TO_TRY = ['gemini-3.6-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash']
 response = None
-max_retries = 5
 
-for attempt in range(max_retries):
-    try:
-        print(f"Generating content (Attempt {attempt + 1}/{max_retries})...")
-        response = client.models.generate_content(
-            model=MODEL_NAME,
-            contents=prompt,
-            config=types.GenerateContentConfig(response_mime_type="application/json")
-        )
+for model_name in MODELS_TO_TRY:
+    print(f"Attempting content generation with model: {model_name}")
+    for attempt in range(3):
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(response_mime_type="application/json")
+            )
+            print(f"Successfully generated using {model_name}!")
+            break
+        except Exception as e:
+            error_msg = str(e)
+            print(f"Attempt {attempt + 1} with {model_name} failed: {error_msg}")
+            if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg or "503" in error_msg:
+                print("Rate limit or high demand detected. Waiting 30 seconds...")
+                time.sleep(30)
+            elif "404" in error_msg or "NOT_FOUND" in error_msg:
+                print(f"Model {model_name} not found. Trying next fallback model...")
+                break
+            else:
+                time.sleep(10)
+                
+    if response:
         break
-    except Exception as e:
-        error_msg = str(e)
-        print(f"Attempt {attempt + 1} failed with error: {error_msg}")
-        if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg or "503" in error_msg:
-            print("Quota or Server Busy. Waiting 60 seconds before retrying...")
-            time.sleep(60)
-        else:
-            time.sleep(10)
 
 if not response:
-    raise Exception("Failed to generate content after max retries due to quota limits.")
+    raise Exception("Failed to generate content. All candidate Gemini models failed or hit quota limits.")
 
 data = json.loads(response.text)
 post_title = data['title']
