@@ -5,6 +5,7 @@ import random
 import time
 import sys
 import subprocess
+import base64
 
 # Auto-install dependencies if missing
 try:
@@ -28,9 +29,9 @@ CLIENT_SECRET = os.environ.get('BLOGGER_CLIENT_SECRET')
 REFRESH_TOKEN = os.environ.get('BLOGGER_REFRESH_TOKEN')
 
 # ---------------------------------------------------------
-# 2. Fetch Story Title & Scrap Original Image URL
+# 2. Fetch Story & Download Real Original Image
 # ---------------------------------------------------------
-def get_news18_story_with_image():
+def get_news18_exact_story_and_image():
     url = "https://www.news18.com/viral/"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
@@ -40,103 +41,95 @@ def get_news18_story_with_image():
         response = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        articles = []
         for img in soup.find_all('img'):
             src = img.get('src') or img.get('data-src') or img.get('data-original')
             alt = img.get('alt', '').strip()
             
-            if src and alt and len(alt) > 20 and ('images' in src or 'news18' in src or 'imengine' in src):
+            if src and alt and len(alt) > 25 and ('images' in src or 'news18' in src or 'imengine' in src):
                 if not src.startswith('http'):
                     src = "https:" + src if src.startswith('//') else "https://www.news18.com" + src
-                articles.append({'title': alt, 'original_image': src})
-        
-        if articles:
-            return random.choice(articles[:8])
-            
+                
+                img_res = requests.get(src, headers=headers, timeout=10)
+                if img_res.status_code == 200:
+                    b64_img = base64.b64encode(img_res.content).decode('utf-8')
+                    mime_type = img_res.headers.get('Content-Type', 'image/jpeg')
+                    data_uri = f"data:{mime_type};base64,{b64_img}"
+                    return {"title": alt, "image_data_uri": data_uri}
+
     except Exception as e:
-        print(f"Scraping error: {e}")
+        print(f"Error fetching exact photo: {e}")
 
     return {
-        "title": "Delhi man phone stunt in metro gets millions of views",
-        "original_image": ""
+        "title": "Delhi Metro Viral Phone Stunt Captures Millions",
+        "image_data_uri": "https://picsum.photos/800/450"
     }
 
-news_data = get_news18_story_with_image()
-print(f"Fetched Story: {news_data['title']}")
+news_data = get_news18_exact_story_and_image()
+print(f"Fetched Exact Article Title: {news_data['title']}")
 
 # ---------------------------------------------------------
-# 3. Gemini API Prompt Setup
+# 3. Gemini Content Rewrite Setup
 # ---------------------------------------------------------
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 prompt = f"""
-You are an expert news journalist. Rewrite this viral story:
-Title: {news_data['title']}
+You are an expert viral news reporter and SEO blog writer.
+Rewrite this viral news story into a compelling blog post:
+News Headline: {news_data['title']}
 
-Rules:
-1. Write in clear, engaging English (400 to 600 words).
-2. Format using HTML tags (<h2>, <h3>, <p>).
-3. Create a detailed visual prompt describing the EXACT news scene to recreate the same image.
+Instructions:
+1. LANGUAGE: Write in natural, fluent ENGLISH.
+2. WORD COUNT: 400 to 600 words.
+3. FORMATTING: Return clean HTML content using <h2>, <h3>, and <p> tags.
+4. DO NOT use markdown code blocks like ```html.
 
-Return strictly valid JSON with keys:
-1. "title": Catchy title for the post.
-2. "content": HTML formatted article text.
-3. "image_prompt": A highly detailed descriptive prompt matching this news photo (e.g. "a young man dancing in Delhi metro with phone attached to glass window").
+Return JSON with exact keys:
+"title": Engaging SEO Title.
+"content": Complete HTML blog text.
 """
 
-# ---------------------------------------------------------
-# 4. Generate Content via Gemini
-# ---------------------------------------------------------
-MODEL_NAME = 'gemini-3.6-flash'
+# Use standard supported Gemini model
+MODEL_NAME = 'gemini-2.5-flash'
 response = None
-max_retries = 3
+max_retries = 5
 
 for attempt in range(max_retries):
     try:
+        print(f"Generating content (Attempt {attempt + 1}/{max_retries})...")
         response = client.models.generate_content(
             model=MODEL_NAME,
             contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json"
-            ),
+            config=types.GenerateContentConfig(response_mime_type="application/json")
         )
         break
     except Exception as e:
-        print(f"Attempt {attempt + 1} failed: {e}")
-        if attempt < max_retries - 1:
-            time.sleep(10)
+        error_msg = str(e)
+        print(f"Attempt {attempt + 1} failed with error: {error_msg}")
+        if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg or "503" in error_msg:
+            print("Quota or Server Busy. Waiting 60 seconds before retrying...")
+            time.sleep(60)
         else:
-            raise e
+            time.sleep(10)
+
+if not response:
+    raise Exception("Failed to generate content after max retries due to quota limits.")
 
 data = json.loads(response.text)
 post_title = data['title']
 post_content = data['content']
-image_prompt = data.get('image_prompt', news_data['title'])
-
-# ---------------------------------------------------------
-# 5. Image Engine: Bypass Hotlink using Proxy or AI Re-creation
-# ---------------------------------------------------------
-if news_data['original_image']:
-    # Bypass News18 Hotlink protection using wsrv.nl CDN Proxy for EXACT photo
-    raw_img = news_data['original_image']
-    featured_image_url = f"https://wsrv.nl/?url={requests.utils.quote(raw_img)}&w=800&output=webp"
-else:
-    # Generate identical context photo using Pollinations AI
-    clean_prompt = requests.utils.quote(image_prompt)
-    featured_image_url = f"https://image.pollinations.ai/prompt/{clean_prompt}?width=800&height=450&nologo=true"
 
 image_html = f'''
 <div style="text-align: center; margin-bottom: 25px;">
-    <img src="{featured_image_url}" alt="{post_title}" style="width:100%; max-width:850px; height:auto; border-radius:12px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); object-fit: cover;"/>
+    <img src="{news_data['image_data_uri']}" alt="{post_title}" style="width:100%; max-width:850px; height:auto; border-radius:12px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); object-fit: cover;"/>
 </div>
 '''
 
 final_blog_content = image_html + post_content
 
 # ---------------------------------------------------------
-# 6. Blogger OAuth Access Token Refresh
+# 4. Blogger OAuth Token Refresh
 # ---------------------------------------------------------
-token_url = "https://oauth2.googleapis.com/token"
+token_url = "[https://oauth2.googleapis.com/token](https://oauth2.googleapis.com/token)"
 token_data = {
     'client_id': CLIENT_ID,
     'client_secret': CLIENT_SECRET,
@@ -148,14 +141,14 @@ token_res = requests.post(token_url, data=token_data)
 token_json = token_res.json()
 
 if 'access_token' not in token_json:
-    raise Exception(f"Failed to refresh access token: {token_res.text}")
+    raise Exception(f"OAuth failed: {token_res.text}")
 
 access_token = token_json['access_token']
 
 # ---------------------------------------------------------
-# 7. Publish Article to Blogger
+# 5. Publish Article to Blogger
 # ---------------------------------------------------------
-blogger_url = f"https://www.googleapis.com/blogger/v3/blogs/{BLOG_ID}/posts/"
+blogger_url = f"[https://www.googleapis.com/blogger/v3/blogs/](https://www.googleapis.com/blogger/v3/blogs/){BLOG_ID}/posts/"
 headers = {
     'Authorization': f'Bearer {access_token}',
     'Content-Type': 'application/json'
@@ -169,6 +162,6 @@ payload = {
 res = requests.post(blogger_url, headers=headers, json=payload)
 
 if res.status_code == 200:
-    print(f"Successfully posted: {post_title}")
+    print(f"Successfully posted exact image story: {post_title}")
 else:
-    print(f"Error publishing post: {res.status_code} - {res.text}")
+    print(f"Publishing failed: {res.status_code} - {res.text}")
