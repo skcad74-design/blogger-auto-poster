@@ -2,9 +2,9 @@ name: 2-Hour Blogger Auto Publisher
 
 on:
   schedule:
-    # Cron Schedule: প্রতি ২ ঘণ্টা পর পর (UTC সময় অনুযায়ী)
+    # প্রতি ২ ঘণ্টা পর পর স্বয়ংক্রিয়ভাবে রান হবে (UTC সময় অনুযায়ী)
     - cron: '0 */2 * * *'
-  workflow_dispatch: # টেস্ট করার জন্য ম্যানুয়াল রান করার অপশন
+  workflow_dispatch: # Actions ট্যাব থেকে ম্যানুয়ালি টেস্ট করার জন্য
 
 jobs:
   auto-publish:
@@ -27,7 +27,7 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           BLOGGER_BLOG_ID: ${{ secrets.BLOGGER_BLOG_ID }}
-          CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
-          REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
+          BLOGGER_CLIENT_ID: ${{ secrets.BLOGGER_CLIENT_ID }}
+          BLOGGER_CLIENT_SECRET: ${{ secrets.BLOGGER_CLIENT_SECRET }}
+          BLOGGER_REFRESH_TOKEN: ${{ secrets.BLOGGER_REFRESH_TOKEN }}
         run: python auto_blog.py
