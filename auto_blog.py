@@ -88,13 +88,13 @@ Return JSON with exact keys:
 "content": Complete HTML blog text.
 """
 
-# Updated list of supported Gemini API models
-MODELS_TO_TRY = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-8b', 'gemini-2.5-flash']
+# Valid active models
+MODELS_TO_TRY = ['gemini-3.6-flash', 'gemini-3.5-flash-lite']
 response = None
 
 for model_name in MODELS_TO_TRY:
     print(f"Attempting content generation with model: {model_name}")
-    for attempt in range(3):
+    for attempt in range(5):
         try:
             response = client.models.generate_content(
                 model=model_name,
@@ -107,8 +107,8 @@ for model_name in MODELS_TO_TRY:
             error_msg = str(e)
             print(f"Attempt {attempt + 1} with {model_name} failed: {error_msg}")
             if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg or "503" in error_msg:
-                print("Quota limit or server busy. Retrying after 60 seconds...")
-                time.sleep(60)
+                print("Quota limit or server busy. Retrying after 45 seconds...")
+                time.sleep(45)
             elif "404" in error_msg or "NOT_FOUND" in error_msg:
                 print(f"Model {model_name} not available. Moving to next fallback model...")
                 break
@@ -119,7 +119,7 @@ for model_name in MODELS_TO_TRY:
         break
 
 if not response:
-    raise Exception("Failed to generate content. All candidate Gemini models failed or hit quota limits.")
+    raise Exception("Failed to generate content. Quota limit exhausted for active models.")
 
 data = json.loads(response.text)
 post_title = data['title']
