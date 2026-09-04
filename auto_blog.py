@@ -16,7 +16,7 @@ CLIENT_SECRET = os.environ.get('BLOGGER_CLIENT_SECRET')
 REFRESH_TOKEN = os.environ.get('BLOGGER_REFRESH_TOKEN')
 
 # ---------------------------------------------------------
-# 2. Gemini API Initialization & Prompt Construction
+# 2. Gemini API Initialization & Prompt
 # ---------------------------------------------------------
 client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -42,10 +42,9 @@ Return your response strictly in JSON format with these exact keys:
 """
 
 # ---------------------------------------------------------
-# 3. Robust API Call with Retry Logic (Fixes 503 Overload)
+# 3. API Execution with Retry (Targeting gemini-3.6-flash)
 # ---------------------------------------------------------
-# Validated Model string for new google-genai SDK
-MODEL_NAME = 'gemini-2.5-flash'
+MODEL_NAME = 'gemini-3.6-flash'
 
 response = None
 max_retries = 3
@@ -61,9 +60,9 @@ for attempt in range(max_retries):
         )
         break
     except Exception as e:
-        print(f"Attempt {attempt + 1} failed with error: {e}")
+        print(f"Attempt {attempt + 1} failed: {e}")
         if attempt < max_retries - 1:
-            time.sleep(5) # Wait before retrying
+            time.sleep(10)  # Wait 10s for high demand/load to clear
         else:
             raise e
 
