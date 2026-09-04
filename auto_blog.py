@@ -40,26 +40,22 @@ def fetch_news18_viral_data():
         
         articles = []
         
-        # Extract article blocks with images and links
         for img in soup.find_all('img'):
             src = img.get('src') or img.get('data-src') or img.get('data-original')
             alt = img.get('alt', '').strip()
             
-            # Filter valid news hero images
             if src and alt and len(alt) > 20 and ('images' in src or 'news18' in src or 'imengine' in src):
                 if not src.startswith('http'):
                     src = "https:" + src if src.startswith('//') else "https://www.news18.com" + src
                 articles.append({'title': alt, 'image': src})
         
         if articles:
-            # Randomly select 1 trending news item from the top scraped items
             selected = random.choice(articles[:6])
             return selected
             
     except Exception as e:
         print(f"Scraping error: {e}")
 
-    # Fallback default if scraping gets blocked
     return {
         "title": "American Woman Calls Out AI Video Painting India As Filthy, Says 'This Is Not What India Looks Like'",
         "image": "https://images.news18.com/ibnlive/uploads/2024/09/viral-image.jpg"
@@ -84,7 +80,7 @@ Instructions:
 1. LANGUAGE: Write strictly in fluent, natural ENGLISH.
 2. WORD COUNT: Write a complete story within 400 to 600 WORDS.
 3. STRUCTURE: Include an engaging intro, context/background story, internet reactions, and a concluding thought.
-4. FORMATTING: Use clean HTML styling tags like <h2>, <h3>, and paragraph tags <p>. Do not include markdown codeblock tags like ```html.
+4. FORMATTING: Use clean HTML styling tags like <h2>, <h3>, and paragraph tags <p>. Do not include markdown codeblock tags.
 5. NO LINKS: Do not add any promotional text or external hyperlinks.
 
 Return strictly valid JSON with these keys:
@@ -134,9 +130,9 @@ image_html = f'''
 final_blog_content = image_html + post_content
 
 # ---------------------------------------------------------
-# 6. Blogger OAuth Access Token Refresh
+# 6. Blogger OAuth Access Token Refresh (Fixed Plain Clean URL)
 # ---------------------------------------------------------
-token_url = "[https://oauth2.googleapis.com/token](https://oauth2.googleapis.com/token)"
+token_url = "https://oauth2.googleapis.com/token"
 token_data = {
     'client_id': CLIENT_ID,
     'client_secret': CLIENT_SECRET,
@@ -155,7 +151,7 @@ access_token = token_json['access_token']
 # ---------------------------------------------------------
 # 7. Publish Article to Blogger
 # ---------------------------------------------------------
-blogger_url = f"[https://www.googleapis.com/blogger/v3/blogs/](https://www.googleapis.com/blogger/v3/blogs/){BLOG_ID}/posts/"
+blogger_url = f"https://www.googleapis.com/blogger/v3/blogs/{BLOG_ID}/posts/"
 headers = {
     'Authorization': f'Bearer {access_token}',
     'Content-Type': 'application/json'
