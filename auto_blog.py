@@ -15,29 +15,33 @@ CLIENT_SECRET = os.environ.get('BLOGGER_CLIENT_SECRET')
 REFRESH_TOKEN = os.environ.get('BLOGGER_REFRESH_TOKEN')
 
 # ---------------------------------------------------------
-# 2. Gemini API - Generate English Viral News (BBC/ABP Style)
+# 2. Gemini API - Lifestyle, Wellness, Fitness & Fashion Post
 # ---------------------------------------------------------
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 prompt = """
-You are a senior international journalist writing for top networks like BBC News, ABP Live, and NDTV. 
-Write a detailed, captivating, and high-traffic viral news story covering a major trending event, national/global news, sports breakthrough, entertainment update, or tech milestone.
+You are a professional lifestyle journalist and expert blogger.
+Write a highly engaging, viral, and SEO-optimized blog article focusing on one of the following niches:
+- Relationships & Couple Wellness
+- Gym, Bodybuilding & Fitness Routines
+- Makeup, Beauty & Skincare Trends
+- Fashion & Personal Style Guides
+- Healthy Lifestyle & Mindful Living
 
-Strict Rules:
-1. LANGUAGE: Write strictly in high-quality ENGLISH.
-2. WORD COUNT: Must be between 600 and 1000 words.
-3. NO ADS OR EXTERNAL LINKS: Do NOT include any sponsored links, promotional copy, website URLs, or ad text.
-4. FORMAT: HTML structure with <h2>, <h3> headings, engaging intro, detailed paragraphs, and key takeaways in bullet points.
+Rules:
+1. LANGUAGE: Write strictly in fluent, high-quality ENGLISH.
+2. WORD COUNT: Must be detailed and between 600 and 1000 words.
+3. NO ADS OR EXTERNAL LINKS: Do NOT include any promotional text, website URLs, or affiliate links in the text content.
+4. FORMAT: Use proper HTML structure with <h2>, <h3> headings, an engaging intro, actionable tips, bullet points, and a concluding thought.
 
 Return your response strictly in JSON format with these exact keys:
-1. "title": A powerful, click-worthy news headline in English (50-70 characters).
-2. "content": The HTML formatted news article (600-1000 words).
-3. "image_keyword": A 2-word English search phrase describing the main topic (e.g., "cricket stadium", "tech summit", "space launch") for photo matching.
+1. "title": A catchy, click-worthy headline in English (50-70 characters).
+2. "content": The HTML formatted blog post (600-1000 words).
+3. "image_keyword": A 1-2 word simple English keyword (e.g. "fitness", "makeup", "couple", "fashion", "workout") for photo matching.
 """
 
-# CHANGED: Switched to gemini-1.5-flash for stability
 response = client.models.generate_content(
-    model='gemini-1.5-flash',
+    model='gemini-2.5-flash',
     contents=prompt,
     config=types.GenerateContentConfig(
         response_mime_type="application/json"
@@ -47,14 +51,16 @@ response = client.models.generate_content(
 data = json.loads(response.text)
 post_title = data['title']
 post_content = data['content']
-image_keyword = data.get('image_keyword', 'breaking news').strip().lower()
+image_keyword = data.get('image_keyword', 'lifestyle').strip().lower()
 
 # ---------------------------------------------------------
-# 3. HD Real Photo Generation (No API Key Required)
+# 3. Real Unsplash Site Photo Direct Link
 # ---------------------------------------------------------
-random_id = random.randint(1, 2000)
+keyword_clean = requests.utils.quote(image_keyword)
+random_sig = random.randint(1, 9999)
 
-featured_image_url = f"https://picsum.photos/seed/{requests.utils.quote(image_keyword)}{random_id}/1200/675"
+# Unsplash Source Direct High-Definition Image URL
+featured_image_url = f"https://source.unsplash.com/1200x675/?{keyword_clean}&sig={random_sig}"
 
 image_html = f'''
 <div style="text-align: center; margin-bottom: 25px;">
@@ -64,8 +70,8 @@ image_html = f'''
 
 final_blog_content = image_html + post_content
 
-print(f"Generated Headline: {post_title}")
-print(f"Content ready in English!")
+print(f"Generated Title: {post_title}")
+print(f"Unsplash Image Link: {featured_image_url}")
 
 # ---------------------------------------------------------
 # 4. Blogger OAuth Access Token Refresh
@@ -103,6 +109,6 @@ payload = {
 res = requests.post(blogger_url, headers=headers, json=payload)
 
 if res.status_code == 200:
-    print("English Viral News Article successfully published to Blogger!")
+    print("Post with Direct Unsplash Photo Link successfully published to Blogger!")
 else:
     print(f"Error publishing post: {res.status_code} - {res.text}")
