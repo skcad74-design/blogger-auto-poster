@@ -15,27 +15,32 @@ CLIENT_SECRET = os.environ.get('BLOGGER_CLIENT_SECRET')
 REFRESH_TOKEN = os.environ.get('BLOGGER_REFRESH_TOKEN')
 
 # ---------------------------------------------------------
-# 2. Gemini API - News18 Viral Style Article Generation
+# 2. Gemini API - Viral Lifestyle/Wellness Post Generation
 # ---------------------------------------------------------
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 prompt = """
-Act as an editor for News18 Viral Trends. 
-Find a highly engaging, crazy, shocking, or heartwarming viral story currently trending in India or globally (similar to News18 Viral Trends coverage).
-Write a brand new, highly detailed, and original news report on this viral event.
+You are a professional lifestyle journalist and expert blogger.
+Write a highly engaging, viral, and SEO-optimized blog article focusing on one of the following niches:
+- Relationships & Couple Wellness
+- Gym, Bodybuilding & Fitness Routines
+- Makeup, Beauty & Skincare Trends
+- Fashion & Personal Style Guides
+- Healthy Lifestyle & Mindful Living
 
-Strict Directives:
-1. WORD COUNT: Must be detailed and strictly between 600 and 1000 words.
-2. LANGUAGE: Write in fluent, catchy, high-quality ENGLISH.
-3. NO COPY/ADS/LINKS: Do NOT include any third-party links, promotional copy, external URLs, or website credits.
-4. FORMAT: HTML body structure with <h2>, <h3> section headers, an eye-catching headline, engaging narrative, and bulleted key facts.
+Rules:
+1. LANGUAGE: Write strictly in fluent, high-quality ENGLISH.
+2. WORD COUNT: Must be detailed and strictly between 600 and 1000 words.
+3. NO ADS OR EXTERNAL LINKS: Do NOT include any promotional text, website URLs, or affiliate links in the text content.
+4. FORMAT: Use proper HTML structure with <h2>, <h3> headings, an engaging intro, actionable tips, bullet points, and a concluding thought.
 
 Return your response strictly in JSON format with these exact keys:
-1. "title": A viral News18-style clicky headline in English (50-70 characters).
-2. "content": The HTML formatted original news story (600-1000 words).
-3. "image_keyword": A 1-2 word English keyword matching the core story (e.g., "viral video", "puppy rescue", "stunt rider", "wedding dance") for the featured image.
+1. "title": A catchy, click-worthy headline in English (50-70 characters).
+2. "content": The HTML formatted blog post (600-1000 words).
+3. "image_keyword": A 1-2 word simple English keyword (e.g. "fitness", "makeup", "couple", "fashion", "workout") for photo matching.
 """
 
+# FIXED: Standardized to gemini-2.5-flash
 response = client.models.generate_content(
     model='gemini-2.5-flash',
     contents=prompt,
@@ -47,16 +52,15 @@ response = client.models.generate_content(
 data = json.loads(response.text)
 post_title = data['title']
 post_content = data['content']
-image_keyword = data.get('image_keyword', 'viral trend').strip().lower()
+image_keyword = data.get('image_keyword', 'lifestyle').strip().lower()
 
 # ---------------------------------------------------------
-# 3. High-Quality Dynamic HD Image Insertion
+# 3. High-Quality Dynamic HD Image Stream
 # ---------------------------------------------------------
 keyword_clean = requests.utils.quote(image_keyword)
 random_sig = random.randint(1000, 9999)
 
-# HD Unsplash Dynamic Stream (Clean and high resolution)
-featured_image_url = f"https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80&sig={random_sig}&{keyword_clean}"
+featured_image_url = f"https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=1200&q=80&sig={random_sig}&{keyword_clean}"
 
 image_html = f'''
 <div style="text-align: center; margin-bottom: 25px;">
@@ -66,7 +70,7 @@ image_html = f'''
 
 final_blog_content = image_html + post_content
 
-print(f"Generated News Headline: {post_title}")
+print(f"Generated Title: {post_title}")
 print(f"Keywords: {image_keyword}")
 
 # ---------------------------------------------------------
@@ -105,6 +109,6 @@ payload = {
 res = requests.post(blogger_url, headers=headers, json=payload)
 
 if res.status_code == 200:
-    print("News18-Style Viral News successfully generated and published!")
+    print("Article successfully published to Blogger!")
 else:
     print(f"Error publishing post: {res.status_code} - {res.text}")
