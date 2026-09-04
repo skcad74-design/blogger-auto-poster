@@ -8,9 +8,11 @@ import subprocess
 
 # Auto-install dependencies if missing
 try:
+    import feedparser
     from bs4 import BeautifulSoup
 except ImportError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "beautifulsoup4"])
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "feedparser", "beautifulsoup4"])
+    import feedparser
     from bs4 import BeautifulSoup
 
 from google import genai
@@ -26,58 +28,70 @@ CLIENT_SECRET = os.environ.get('BLOGGER_CLIENT_SECRET')
 REFRESH_TOKEN = os.environ.get('BLOGGER_REFRESH_TOKEN')
 
 # ---------------------------------------------------------
-# 2. Scrape Real Headline from News18 Viral
+# 2. Fetch Unique News Title from News18 RSS Feed
 # ---------------------------------------------------------
-def fetch_news18_viral_data():
-    url = "https://www.news18.com/viral/"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
-    }
+def get_unique_news18_story():
+    rss_urls = [
+        "https://www.news18.com/common-html/v1/eng/ssr/rss/viral.xml",
+        "https://www.news18.com/rss/viral.xml"
+    ]
     
-    try:
-        response = requests.get(url, headers=headers, timeout=10)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        headlines = []
-        for a in soup.find_all('a', href=True):
-            title_text = a.get_text(strip=True)
-            if len(title_text) > 30 and '/viral/' in a['href']:
-                headlines.append(title_text)
-        
-        if headlines:
-            selected_title = random.choice(headlines[:8])
-            return selected_title
-            
-    except Exception as e:
-        print(f"Scraping error: {e}")
+    entries = []
+    for url in rss_urls:
+        feed = feedparser.parse(url)
+        if feed.entries:
+            entries = feed.entries
+            break
 
-    return "American Woman Calls Out AI Video Painting India As Filthy, Says 'This Is Not What India Looks Like'"
+    if entries:
+        # Pick a random news entry from top 10 items so every execution gets a different story
+        selected_entry = random.choice(entries[:10])
+        title = selected_entry.title
+        summary_raw = getattr(selected_entry, 'summary', getattr(selected_entry, 'description', ''))
+        
+        soup = BeautifulSoup(summary_raw, 'html.parser')
+        clean_summary = soup.get_text(strip=True)
+        
+        return {
+            "title": title,
+            "summary": clean_summary if clean_summary else title
+        }
+    else:
+        # Dynamic fallback keywords if RSS completely fails
+        topics = [
+            "Viral Social Media Trend Takes Internet By Storm",
+            "Bizarre Internet Meme Causes Wild Online Reactions",
+            "Shocking Viral Video Leaves Social Media Users Divided"
+        ]
+        chosen = random.choice(topics)
+        return {"title": chosen, "summary": chosen}
 
-news_headline = fetch_news18_viral_data()
-print(f"Scraped Headline: {news_headline}")
+news_data = get_unique_news18_story()
+print(f"Fetched Unique News Topic: {news_data['title']}")
 
 # ---------------------------------------------------------
-# 3. Gemini API Prompt Setup
+# 3. Gemini API Rewrite Prompt Setup
 # ---------------------------------------------------------
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 prompt = f"""
-You are an expert viral news reporter and SEO blog generator.
-Rewrite the following trending viral news headline from News18 into a compelling, fresh, and detailed blog article:
+You are an expert viral news reporter and SEO blog writer.
+Rewrite and expand upon the following trending viral news story into a brand-new, original blog article:
 
-News Headline: {news_headline}
+News Title: {news_data['title']}
+News Context: {news_data['summary']}
 
 Instructions:
 1. LANGUAGE: Write strictly in fluent, natural ENGLISH.
-2. WORD COUNT: Write a complete story within 400 to 600 WORDS.
-3. STRUCTURE: Include an engaging intro, context/background story, internet reactions, and a concluding thought.
-4. FORMATTING: Use clean HTML styling tags like <h2>, <h3>, and paragraph tags <p>. Do not include markdown codeblocks.
-5. NO LINKS: Do not add any promotional text or external hyperlinks.
+2. WORD COUNT: Write a complete story between 400 and 600 WORDS.
+3. STRUCTURE: Include an engaging title, background context, social media reaction, and conclusion.
+4. FORMATTING: Use clean HTML tags like <h2>, <h3>, and <p>. Do NOT use markdown block ticks (```html).
+5. NO PROMOTIONAL LINKS: Do not add external URLs.
 
 Return strictly valid JSON with these exact keys:
-1. "title": An catchy, engaging article title (50-70 characters).
-2. "content": The HTML formatted article body (under 600 words).
-3. "image_keyword": A single, high-relevant English word (e.g. "india", "ai", "police", "uber", "meme", "travel") to fetch a clean related image.
+1. "title": An engaging, catchy headline (50-70 characters).
+2. "content": The HTML formatted article body (400-600 words).
+3. "image_keyword": A 1-2 word relevant English keyword for a contextual image.
 """
 
 # ---------------------------------------------------------
@@ -107,16 +121,13 @@ for attempt in range(max_retries):
 data = json.loads(response.text)
 post_title = data['title']
 post_content = data['content']
-image_keyword = data.get('image_keyword', 'viral').strip().lower()
+image_keyword = data.get('image_keyword', 'news').strip().lower()
 
 # ---------------------------------------------------------
-# 5. CDN Embedded Dynamic Image (Fixes Hotlink & Same-Photo Issue)
+# 5. Dynamic Featured Image Stream (Picsum CDN)
 # ---------------------------------------------------------
-random_seed = random.randint(100, 99999)
-clean_keyword = requests.utils.quote(image_keyword)
-
-# Unsplash Source with random seed ensures high availability and unique photos per post
-featured_image_url = f"https://picsum.photos/seed/{random_seed}/800/450"
+random_seed = random.randint(10000, 99999)
+featured_image_url = f"[https://picsum.photos/seed/](https://picsum.photos/seed/){random_seed}/800/450"
 
 image_html = f'''
 <div style="text-align: center; margin-bottom: 25px;">
@@ -129,7 +140,7 @@ final_blog_content = image_html + post_content
 # ---------------------------------------------------------
 # 6. Blogger OAuth Access Token Refresh
 # ---------------------------------------------------------
-token_url = "https://oauth2.googleapis.com/token"
+token_url = "[https://oauth2.googleapis.com/token](https://oauth2.googleapis.com/token)"
 token_data = {
     'client_id': CLIENT_ID,
     'client_secret': CLIENT_SECRET,
@@ -148,7 +159,7 @@ access_token = token_json['access_token']
 # ---------------------------------------------------------
 # 7. Publish Article to Blogger
 # ---------------------------------------------------------
-blogger_url = f"https://www.googleapis.com/blogger/v3/blogs/{BLOG_ID}/posts/"
+blogger_url = f"[https://www.googleapis.com/blogger/v3/blogs/](https://www.googleapis.com/blogger/v3/blogs/){BLOG_ID}/posts/"
 headers = {
     'Authorization': f'Bearer {access_token}',
     'Content-Type': 'application/json'
@@ -162,6 +173,6 @@ payload = {
 res = requests.post(blogger_url, headers=headers, json=payload)
 
 if res.status_code == 200:
-    print(f"Successfully posted: {post_title}")
+    print(f"Successfully posted new topic: {post_title}")
 else:
     print(f"Error publishing post: {res.status_code} - {res.text}")
