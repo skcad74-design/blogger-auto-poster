@@ -2,12 +2,11 @@ name: Auto Blog Poster
 
 on:
   schedule:
-    - cron: '0 */2 * * *' # প্রতি ২ ঘন্টা পর পর স্বয়ংক্রিয়ভাবে রান হবে
-  workflow_dispatch: # ম্যানুয়ালি রান করার বোতাম
+    - cron: '0 */2 * * *' # প্রতি ২ ঘণ্টা পর পর রান হবে
+  workflow_dispatch: # ম্যানুয়ালি রান করার অপশন
 
 jobs:
   build-and-run:
-    runs-counts: 1
     runs-on: ubuntu-latest
 
     steps:
