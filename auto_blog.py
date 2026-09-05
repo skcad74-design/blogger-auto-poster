@@ -57,11 +57,11 @@ HEADERS = {
 
 REQUEST_TIMEOUT = 20
 
-# Updated with working model versions
+# Active supported models (Updated as per API recommendations)
 MODELS_TO_TRY = [
-    "gemini-2.5-flash",
-    "gemini-2.0-flash",
-    "gemini-1.5-flash"
+    "gemini-3.6-flash",
+    "gemini-3.7-flash",
+    "gemini-3.5-flash"
 ]
 
 
@@ -117,7 +117,7 @@ news_data = get_latest_recent_news()
 
 
 # =========================================================
-# 4. GEMINI CLIENT & REWRITE WITH LABELS/CATEGORIES
+# 4. GEMINI CLIENT & REWRITE WITH LABELS
 # =========================================================
 
 client = genai.Client(api_key=GEMINI_API_KEY)
@@ -178,7 +178,7 @@ raw_text = re.sub(r"\s*```$", "", raw_text)
 data = json.loads(raw_text)
 post_title = data.get("title", news_data["title"])
 post_content = data.get("content", "")
-post_labels = data.get("labels", ["News", "Breaking News"])
+post_labels = data.get("labels", ["News", "Top Stories"])
 
 # Clean direct image HTML embed for Blogger
 image_html = ""
