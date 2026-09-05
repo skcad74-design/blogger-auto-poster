@@ -87,23 +87,20 @@ Return JSON with exact keys:
 "content": Complete HTML blog text.
 """
 
-# Active models array
-MODELS_TO_TRY = ['gemini-2.5-flash', 'gemini-2.0-flash']
+# Updated active model names recommended by the Google API
+MODELS_TO_TRY = ['gemini-3.6-flash', 'gemini-3.5-flash-lite']
 response = None
 
 for model_name in MODELS_TO_TRY:
     print(f"Attempting content generation with model: {model_name}")
     for attempt in range(5):
         try:
-            config = types.GenerateContentConfig(
-                response_mime_type="application/json",
-                automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True)
-            )
-            
             response = client.models.generate_content(
                 model=model_name,
                 contents=prompt,
-                config=config
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                )
             )
             print(f"Successfully generated using {model_name}!")
             break
