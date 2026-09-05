@@ -1,7 +1,6 @@
 import os
 import json
 import requests
-import random
 import time
 import sys
 import subprocess
@@ -89,7 +88,7 @@ Return JSON with exact keys:
 """
 
 # Valid active models
-MODELS_TO_TRY = ['gemini-3.6-flash', 'gemini-3.5-flash-lite']
+MODELS_TO_TRY = ['gemini-2.5-flash', 'gemini-1.5-flash']
 response = None
 
 for model_name in MODELS_TO_TRY:
@@ -99,7 +98,9 @@ for model_name in MODELS_TO_TRY:
             response = client.models.generate_content(
                 model=model_name,
                 contents=prompt,
-                config=types.GenerateContentConfig(response_mime_type="application/json")
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                )
             )
             print(f"Successfully generated using {model_name}!")
             break
