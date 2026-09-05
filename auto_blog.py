@@ -57,9 +57,11 @@ HEADERS = {
 
 REQUEST_TIMEOUT = 20
 
+# Updated with working model versions
 MODELS_TO_TRY = [
     "gemini-2.5-flash",
-    "gemini-1.5-flash",
+    "gemini-2.0-flash",
+    "gemini-1.5-flash"
 ]
 
 
@@ -132,8 +134,8 @@ Requirements:
 1. Natural, engaging English suitable for top-ranking SEO articles.
 2. Word count: 400 - 600 words.
 3. Clean HTML content inside "content" key (use <h2>, <h3>, <p>, <ul>, <li>).
-4. Generate 2-4 highly relevant categories/tags as an array of strings under the "labels" key (e.g., ["News", "India", "Technology"]).
-5. Do NOT use markdown code fences in the output.
+4. Generate 2 to 4 relevant blog categories/tags as a JSON list under "labels" key (e.g., ["News", "India", "Politics"]).
+5. Do NOT use markdown code fences in response.
 6. End with source attribution inside content:
    <p><strong>Source:</strong> <a href="{news_data['url']}" target="_blank" rel="nofollow noopener">Times of India</a></p>
 
@@ -176,7 +178,7 @@ raw_text = re.sub(r"\s*```$", "", raw_text)
 data = json.loads(raw_text)
 post_title = data.get("title", news_data["title"])
 post_content = data.get("content", "")
-post_labels = data.get("labels", ["News", "Breaking News"])  # Extract labels array
+post_labels = data.get("labels", ["News", "Breaking News"])
 
 # Clean direct image HTML embed for Blogger
 image_html = ""
@@ -191,7 +193,7 @@ final_blog_content = image_html + post_content
 
 
 # =========================================================
-# 6. PUBLISH TO BLOGGER (WITH LABELS)
+# 6. PUBLISH TO BLOGGER WITH LABELS
 # =========================================================
 
 TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -218,10 +220,10 @@ payload = {
     "kind": "blogger#post",
     "title": post_title,
     "content": final_blog_content,
-    "labels": post_labels  # Passed categories to Blogger API
+    "labels": post_labels
 }
 
-print(f"\nPublishing to Blogger with Labels: {post_labels}...")
+print(f"\nPublishing to Blogger with Labels ({post_labels})...")
 res = requests.post(BLOGGER_URL, headers=headers, json=payload, timeout=REQUEST_TIMEOUT)
 
 if res.status_code in (200, 201):
