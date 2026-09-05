@@ -87,7 +87,6 @@ Return JSON with exact keys:
 "content": Complete HTML blog text.
 """
 
-# Updated active model names recommended by the Google API
 MODELS_TO_TRY = ['gemini-3.6-flash', 'gemini-3.5-flash-lite']
 response = None
 
@@ -135,7 +134,7 @@ image_html = f'''
 final_blog_content = image_html + post_content
 
 # ---------------------------------------------------------
-# 4. Blogger OAuth Token Refresh
+# 4. Blogger OAuth Token Refresh (FIXED PLAIN TEXT URL)
 # ---------------------------------------------------------
 token_url = "[https://oauth2.googleapis.com/token](https://oauth2.googleapis.com/token)"
 token_data = {
@@ -154,7 +153,7 @@ if 'access_token' not in token_json:
 access_token = token_json['access_token']
 
 # ---------------------------------------------------------
-# 5. Publish Article to Blogger
+# 5. Publish Article to Blogger (FIXED PLAIN TEXT URL)
 # ---------------------------------------------------------
 blogger_url = f"[https://www.googleapis.com/blogger/v3/blogs/](https://www.googleapis.com/blogger/v3/blogs/){BLOG_ID}/posts/"
 headers = {
